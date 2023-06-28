@@ -44,8 +44,10 @@ int main(int argc, char *argv[])
 
     int arr[] = {1, 1, 2, 4};
     int arrb[] = {0, 1, 2, 4};
+    int* bla = (int*)malloc(2 * NTASKS * sizeof(int));
+    std::memcpy(bla, sendbuf.data(), 2 * NTASKS * sizeof(int));
 
-    MPI_Gatherv(sendbuf.data(), sendbuf.size(), MPI_INT, rank == 1 ? MPI_IN_PLACE : sendbuf.data(), arr, arrb, MPI_INT, 1, MPI_COMM_WORLD);
+    MPI_Gatherv(bla, sendbuf.size(), MPI_INT, sendbuf.data(), arr, arrb, MPI_INT, 1, MPI_COMM_WORLD);
     print_buffers(sendbuf);
     init_buffers(sendbuf);
     MPI_Barrier(MPI_COMM_WORLD);
