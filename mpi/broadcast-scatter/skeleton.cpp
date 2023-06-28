@@ -1,8 +1,11 @@
 #include <cstdio>
 #include <vector>
 #include <mpi.h>
+#include <iostream>
+#include <deque>
+#include <unordered_set>
 
-void init_buffers(std::vector<int> &sendbuffer, std::vector<int> &recvbuffer);
+void init_buffers(std::vector<int> &sendbuffer);
 void print_buffers(std::vector<int> &buffer);
 
 
@@ -10,33 +13,66 @@ int main(int argc, char *argv[])
 {
     int ntasks, myid, size=12;
     std::vector<int> sendbuf(size);
-    std::vector<int> recvbuf(size);
     MPI_Status status;
 
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &ntasks);
     MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 
+    if (ntasks < 2) {
+        std::cerr << "Too few tasks" << std::endl;
+        exit(1);
+    }
+
     /* Initialize message buffers */
-    init_buffers(sendbuf, recvbuf);
+    init_buffers(sendbuf);
 
     /* Print data that will be sent */
     print_buffers(sendbuf);
-
+    MPI_Barrier(MPI_COMM_WORLD);
     /* Send everywhere */
+    std::deque<int>* a = new std::deque<int>();
+    std::deque<int>* b = new std::deque<int>();
+    std::unordered_set<int> has;
+    has.insert(0);
+    a->push_back(0);
+    int hop = (ntasks + 1) / 2;
+    while (hop) {
+        while (a->size()) {
+            int src = a->front();
+            a->pop_front();
+            b->push_back(src);
+            int trg = (src + hop) % ntasks;
+            if (has.count(trg) == 0) {
+                b->push_back(trg);
+                if (myid == src) {
+                    MPI_Send(sendbuf.data(), size, MPI_INT, trg, 0, MPI_COMM_WORLD);
+                }
+            }
+        }
+        for (auto trg : *b) {
+            if (has.count(trg)) {
+                continue;
+            }
+            has.insert(trg);
+            int src = trg - hop;
+            if (myid == trg) {
+                MPI_Recv(sendbuf.data(), size, MPI_INT, src, 0, MPI_COMM_WORLD, &status);
+            }
+        }
+        MPI_Barrier(MPI_COMM_WORLD);
+        std::swap(a, b);
+        hop = hop == 1 ? 0 : (hop + 1) / 2;
+    }
 
-    // TODO for broadcast: Implement the broadcast of the array sendbuf using send and recv functions
-    // TODO for scatter: Implement the scatter of the array sendbuf using send and recv functions
-
-    /* Print data that was received */
-    print_buffers(recvbuf);
+    print_buffers(sendbuf);
 
     MPI_Finalize();
     return 0;
 }
 
 
-void init_buffers(std::vector<int> &sendbuffer, std::vector<int> &recvbuffer)
+void init_buffers(std::vector<int> &sendbuffer)
 {
     int rank;
     int buffersize = sendbuffer.size();
@@ -45,12 +81,10 @@ void init_buffers(std::vector<int> &sendbuffer, std::vector<int> &recvbuffer)
 
     if (rank == 0) {
         for (int i = 0; i < buffersize; i++) {
-            recvbuffer[i] = -1;
             sendbuffer[i] = i;
         }
     } else {
         for (int i = 0; i < buffersize; i++) {
-            recvbuffer[i] = -1;
             sendbuffer[i] = -1;
         }
     }
