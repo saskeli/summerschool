@@ -2,6 +2,7 @@
 #include <string>
 #include "matrix.hpp"
 #include <mpi.h>
+#include <iostream>
 
 // Class for basic parallelization information
 struct ParallelData {
