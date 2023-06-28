@@ -24,6 +24,16 @@ int main(int argc, char *argv[])
     // TODO: Implement sending and receiving as defined in the assignment
     // Send msgsize elements from the array "message", and receive into
     // "receiveBuffer"
+    MPI_Status stats;
+    if (myid == 0) {
+        MPI_Send(message.data(), msgsize, MPI_INT, 1, 0, MPI_COMM_WORLD);
+        MPI_Recv(receiveBuffer.data(), msgsize, MPI_INT, 1, 1, MPI_COMM_WORLD, &stats);
+        MPI_Get_count(&stats, MPI_INT, &nrecv);
+    } else if (myid == 1) {
+        nrecv = MPI_Recv(receiveBuffer.data(), msgsize, MPI_INT, 0, 0, MPI_COMM_WORLD, &stats);
+        MPI_Get_count(&stats, MPI_INT, &nrecv);
+        MPI_Send(message.data(), msgsize, MPI_INT, 0, 1, MPI_COMM_WORLD);
+    }
     if (myid == 0) {
 
         printf("Rank %i received %i elements, first %i\n", myid, nrecv, receiveBuffer[0]);
