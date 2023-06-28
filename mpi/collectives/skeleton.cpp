@@ -45,13 +45,24 @@ int main(int argc, char *argv[])
 
     int arr[] = {1, 1, 2, 4};
     int arrb[] = {0, 1, 2, 4};
-    int* bla = (int*)malloc(2 * NTASKS * sizeof(int));
-    std::memcpy(bla, sendbuf.data(), 2 * NTASKS * sizeof(int));
+    //int* bla = (int*)malloc(2 * NTASKS * sizeof(int));
+    //std::memcpy(bla, sendbuf.data(), 2 * NTASKS * sizeof(int));
 
-    MPI_Gatherv(bla, sendbuf.size(), MPI_INT, sendbuf.data(), arr, arrb, MPI_INT, 1, MPI_COMM_WORLD);
+    sendbuf[1] = sendbuf[0];
+    MPI_Gatherv(rank == 1 ? MPI_IN_PLACE : sendbuf.data(), arr[rank], MPI_INT, sendbuf.data(), arr, arrb, MPI_INT, 1, MPI_COMM_WORLD);
     print_buffers(sendbuf);
     init_buffers(sendbuf);
     MPI_Barrier(MPI_COMM_WORLD);
+
+    //std::memcpy(bla, sendbuf.data(), 2 * NTASKS * sizeof(int));
+
+    for (int i = 0; i < 4; i++) {
+        MPI_Gather(rank == i ? MPI_IN_PLACE : sendbuf.data() + 2 * i, 2, MPI_INT, sendbuf.data(), 2, MPI_INT, i, MPI_COMM_WORLD);
+    }
+    print_buffers(sendbuf);
+    init_buffers(sendbuf);
+    MPI_Barrier(MPI_COMM_WORLD);
+    
     
     MPI_Finalize();
     return 0;
