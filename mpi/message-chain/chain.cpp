@@ -26,19 +26,19 @@ int main(int argc, char *argv[])
         receiveBuffer[i] = -1;
     }
 
-    // TODO: Set source and destination ranks
-    // TODO: Treat boundaries with MPI_PROC_NULL
+    int to = myid == ntasks - 1 ? MPI_PROC_NULL : myid + 1;
+    int from = myid == 0 ? MPI_PROC_NULL : myid - 1;
 
     // Start measuring the time spent in communication
     MPI_Barrier(MPI_COMM_WORLD);
     t0 = MPI_Wtime();
 
-    // TODO: Send messages
+    MPI_Send(message.data(), size, MPI_INT, to, 0, MPI_COMM_WORLD);
 
     printf("Sender: %d. Sent elements: %d. Tag: %d. Receiver: %d\n",
            myid, size, myid + 1, destination);
 
-    // TODO: Receive messages
+    MPI_Recv(receiveBuffer.data(), size, MPI_INT, from, 0, MPI_COMM_WORLD, &status);
 
     printf("Receiver: %d. first element %d.\n",
            myid, receiveBuffer[0]);
