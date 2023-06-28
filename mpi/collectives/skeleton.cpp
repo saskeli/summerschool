@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <vector>
 #include <cstring>
+#include <cstdlib>
 #include <mpi.h>
 
 #define NTASKS 4
