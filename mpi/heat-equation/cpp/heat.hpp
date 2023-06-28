@@ -21,13 +21,15 @@ struct ParallelData {
         // boundary domains appropriatly
         int rc = MPI_Comm_size(MPI_COMM_WORLD, &size);
         rc |= MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        nup = rank == size - 1 ? MPI_PROC_NULL : rank + 1;
-        ndown = rank == 0 ? MPI_PROC_NULL : rank - 1;
+        nup = rank == 0 ? MPI_PROC_NULL : rank - 1;
+        ndown = rank == size - 1 ? MPI_PROC_NULL : rank + 1;
 
         if (rc != MPI_SUCCESS) {
             std::cerr << "MPI state initialization failed." << std::endl;
             exit(1);
         }
+
+        //std::cout << "Hello I am " << rank << ", and (nup, ndown) = (" << nup << ", " << ndown << ")" << std::endl;
 
         // TODO end
 

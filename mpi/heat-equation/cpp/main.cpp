@@ -17,7 +17,7 @@ int main(int argc, char **argv)
     }
     // TODO end
 
-    const int image_interval = 100;    // Image output interval
+    const int image_interval = 1;    // Image output interval
 
     ParallelData parallelization; // Parallelization info
 
@@ -79,7 +79,7 @@ int main(int argc, char **argv)
     write_field(previous, nsteps, parallelization);
 
   // TODO start: finalize MPI
-
+    MPI_Finalize();
   // TODO end
 
     return 0;
