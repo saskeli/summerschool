@@ -33,12 +33,10 @@ int main(int argc, char *argv[])
     MPI_Barrier(MPI_COMM_WORLD);
     t0 = MPI_Wtime();
 
-    MPI_Send(message.data(), size, MPI_INT, to, 0, MPI_COMM_WORLD);
+    MPI_Sendrecv(message.data(), size, MPI_INT, to, 0, receiveBuffer.data(), size, MPI_INT, from, 0, MPI_COMM_WORLD, &status);
 
     printf("Sender: %d. Sent elements: %d. Tag: %d. Receiver: %d\n",
            myid, size, myid + 1, destination);
-
-    MPI_Recv(receiveBuffer.data(), size, MPI_INT, from, 0, MPI_COMM_WORLD, &status);
 
     printf("Receiver: %d. first element %d.\n",
            myid, receiveBuffer[0]);
