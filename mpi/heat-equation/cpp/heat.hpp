@@ -11,18 +11,24 @@ struct ParallelData {
 
     ParallelData() {      // Constructor
 
-      // TODO start: query number of MPI tasks and store it in
-      // the size attribute of the class
+        // TODO start: query number of MPI tasks and store it in
+        // the size attribute of the class
 
-      // Query MPI rank of this task and store it in the rank attribute
-      // Determine also up and down neighbours of this domain and store
-      // them in nup and ndown attributes, remember to cope with
-      // boundary domains appropriatly
+        // Query MPI rank of this task and store it in the rank attribute
+        // Determine also up and down neighbours of this domain and store
+        // them in nup and ndown attributes, remember to cope with
+        // boundary domains appropriatly
+        int rc = MPI_Comm_size(MPI_COMM_WORLD, &size);
+        rc |= MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        nup = rank == size - 1 ? MPI_PROC_NULL : rank + 1;
+        ndown = rank == 0 ? MPI_PROC_NULL : rank - 1;
 
-      nup =
-      ndown =
+        if (rc != MPI_SUCCESS) {
+            std::cerr << "MPI state initialization failed." << std::endl;
+            exit(1);
+        }
 
-      // TODO end
+        // TODO end
 
     };
 

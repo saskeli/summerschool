@@ -10,9 +10,12 @@
 int main(int argc, char **argv)
 {
 
-  // TODO start: initialize MPI
-
-  // TODO end
+    // TODO start: initialize MPI
+    if (MPI_Init(&argc, &argv) != MPI_SUCCESS) {
+        std::cerr << "Failed to init MPI" << std::endl;
+        exit(1);
+    }
+    // TODO end
 
     const int image_interval = 100;    // Image output interval
 
