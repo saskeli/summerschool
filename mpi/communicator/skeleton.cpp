@@ -31,11 +31,10 @@ int main(int argc, char *argv[])
 
     /* Print data that will be sent */
     print_buffers(sendbuf);
+    MPI_Comm n;
+    MPI_Comm_split(MPI_COMM_WORLD, rank / 2, rank, &n);
 
-    /* TODO: create a new communicator and
-     *       use a single collective communication call
-     *       (and maybe prepare some parameters for the call)
-     */
+    MPI_Reduce(sendbuf.data(), recvbuf.data(), 2 * NTASKS, MPI_INT, MPI_SUM, 0, n);
 
     /* Print data that was received */
     print_buffers(recvbuf);
