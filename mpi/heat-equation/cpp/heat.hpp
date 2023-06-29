@@ -6,9 +6,9 @@
 
 // Class for basic parallelization information
 struct ParallelData {
-    int size;            // Number of MPI tasks
+    MPI_Comm comm;
     int rank;
-    int nup, ndown;      // Ranks of neighbouring MPI tasks
+    int size;
 
     ParallelData() {      // Constructor
 
@@ -19,16 +19,11 @@ struct ParallelData {
         // Determine also up and down neighbours of this domain and store
         // them in nup and ndown attributes, remember to cope with
         // boundary domains appropriatly
-        int rc = MPI_Comm_size(MPI_COMM_WORLD, &size);
-        rc |= MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        nup = rank == 0 ? MPI_PROC_NULL : rank - 1;
-        ndown = rank == size - 1 ? MPI_PROC_NULL : rank + 1;
 
-        if (rc != MPI_SUCCESS) {
-            std::cerr << "MPI state initialization failed." << std::endl;
-            exit(1);
-        }
-
+        int dims = 0, periods = 0;
+        MPI_Cart_create(MPI_COMM_WORLD, 1, &dims, &periods, 0, &comm);
+        MPI_Comm_rank(comm, &rank);
+        MPI_Comm_size(comm, &size);
         //std::cout << "Hello I am " << rank << ", and (nup, ndown) = (" << nup << ", " << ndown << ")" << std::endl;
 
         // TODO end
@@ -50,9 +45,9 @@ struct Field {
 
     Matrix<double> temperature;
 
-    void setup(int nx_in, int ny_in, ParallelData parallel);
+    void setup(int nx_in, int ny_in, const ParallelData& parallel);
 
-    void generate(ParallelData parallel);
+    void generate(const ParallelData& parallel);
 
     // standard (i,j) syntax for setting elements
     double& operator()(int i, int j) {return temperature(i, j);}
@@ -64,15 +59,17 @@ struct Field {
 
 // Function declarations
 void initialize(int argc, char *argv[], Field& current,
-                Field& previous, int& nsteps, ParallelData parallel);
+                Field& previous, int& nsteps, const ParallelData& parallel);
 
-void exchange(Field& field, const ParallelData parallel);
+void exchange(Field& field, const ParallelData& parallel, MPI_Request* reqs);
 
 void evolve(Field& curr, const Field& prev, const double a, const double dt);
+void evolve_inner(Field& curr, const Field& prev, const double a, const double dt);
+void evolve_outer(Field& curr, const Field& prev, const double a, const double dt);
 
-void write_field(const Field& field, const int iter, const ParallelData parallel);
+void write_field(const Field& field, const int iter, const ParallelData& parallel);
 
 void read_field(Field& field, std::string filename,
-                const ParallelData parallel);
+                const ParallelData& parallel);
 
-double average(const Field& field, const ParallelData parallel);
+double average(const Field& field, const ParallelData& parallel);
