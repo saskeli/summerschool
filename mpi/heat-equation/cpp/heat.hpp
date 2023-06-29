@@ -19,10 +19,9 @@ struct ParallelData {
         // Determine also up and down neighbours of this domain and store
         // them in nup and ndown attributes, remember to cope with
         // boundary domains appropriatly
-
-        int dims = 0, periods = 0;
-        MPI_Cart_create(MPI_COMM_WORLD, 1, &dims, &periods, 0, &comm);
-        MPI_Comm_rank(comm, &rank);
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        int periods = 0;
+        MPI_Cart_create(MPI_COMM_WORLD, 1, &rank, &periods, 1, &comm);
         MPI_Comm_size(comm, &size);
         //std::cout << "Hello I am " << rank << ", and (nup, ndown) = (" << nup << ", " << ndown << ")" << std::endl;
 
