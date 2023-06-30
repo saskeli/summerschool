@@ -5,7 +5,7 @@
 
 
 void initialize(int argc, char *argv[], Field& current,
-                Field& previous, int& nsteps, const ParallelData& parallel)
+                Field& previous, int& nsteps, ParallelData& parallel)
 {
     /*
      * Following combinations of command line arguments are possible:
@@ -59,6 +59,7 @@ void initialize(int argc, char *argv[], Field& current,
             std::cout << "Reading input from " + input_file << std::endl;
         read_field(current, input_file, parallel);
     } else {
+        parallel.makeTypes(cols, rows);
         current.setup(rows, cols, parallel);
         current.generate(parallel);
     }

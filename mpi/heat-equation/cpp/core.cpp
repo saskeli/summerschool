@@ -4,29 +4,15 @@
 
 #include "heat.hpp"
 
+static const int counts[] = {1, 1, 1, 1};
+
 // Exchange the boundary values
 void exchange(Field& field, const ParallelData& parallel, MPI_Request* reqs) {
-    double* sbuf = field.temperature.data(1, 0);
-    double* rbuf = field.temperature.data(field.nx + 1, 0);
-    double* sbuf2 = field.temperature.data(field.nx, 0);
-    double* rbuf2 = field.temperature.data(0, 0);
-    // TODO start: implement halo exchange
 
-    // You can utilize the data() method of the Matrix class to obtain pointer
-    // to element, e.g. field.temperature.data(i, j)
-    int nup, ndown;
-
-    MPI_Cart_shift(parallel.comm, 0, 1, &nup, &ndown);
-    // Send to up, receive from down
-    MPI_Isend(sbuf, field.ny, MPI_DOUBLE, nup, 0, MPI_COMM_WORLD,
-              reqs);
-    MPI_Irecv(rbuf, field.ny, MPI_DOUBLE, ndown, 0, MPI_COMM_WORLD,
-              reqs + 1);
-    MPI_Isend(sbuf2, field.ny, MPI_DOUBLE, ndown, 0, MPI_COMM_WORLD,
-              reqs + 2);
-    MPI_Irecv(rbuf2, field.ny, MPI_DOUBLE, nup, 0, MPI_COMM_WORLD,
-              reqs + 3);
-    // Send to down, receive from up
+    MPI_Ineighbor_alltoallw(field.temperature.data(), counts, parallel.sdisps,
+                            parallel.types, field.temperature.data(), counts,
+                            parallel.rdisps, parallel.types, parallel.comm,
+                            reqs);
 }
 
 // Update the temperature values using five-point stencil */

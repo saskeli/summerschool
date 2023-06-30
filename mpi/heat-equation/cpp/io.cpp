@@ -45,7 +45,7 @@ void write_field(const Field& field, const int iter, const ParallelData& paralle
 
 // Read the initial temperature distribution from a file
 void read_field(Field& field, std::string filename,
-                const ParallelData& parallel)
+                ParallelData& parallel)
 {
     std::ifstream file;
     file.open(filename);
@@ -54,7 +54,7 @@ void read_field(Field& field, std::string filename,
     std::getline(file, line);
     int nx_full, ny_full;
     std::stringstream(line) >> comment >> nx_full >> ny_full;
-
+    parallel.makeTypes(nx_full, ny_full);
     field.setup(nx_full, ny_full, parallel);
 
     auto full = Matrix<double> (nx_full, ny_full);

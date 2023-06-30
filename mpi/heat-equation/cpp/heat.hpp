@@ -7,27 +7,42 @@
 // Class for basic parallelization information
 struct ParallelData {
     MPI_Comm comm;
+    MPI_Datatype row, col;
+    MPI_Datatype types[4];
+    MPI_Aint sdisps[4], rdisps[4];
+    int dims[2];
     int rank;
     int size;
 
     ParallelData() {      // Constructor
-
-        // TODO start: query number of MPI tasks and store it in
-        // the size attribute of the class
-
-        // Query MPI rank of this task and store it in the rank attribute
-        // Determine also up and down neighbours of this domain and store
-        // them in nup and ndown attributes, remember to cope with
-        // boundary domains appropriatly
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        int periods = 0;
-        MPI_Cart_create(MPI_COMM_WORLD, 1, &rank, &periods, 1, &comm);
-        MPI_Comm_size(comm, &size);
-        //std::cout << "Hello I am " << rank << ", and (nup, ndown) = (" << nup << ", " << ndown << ")" << std::endl;
-
-        // TODO end
+        MPI_Comm_size(MPI_COMM_WORLD, &size);
+        int periods[] = {0, 0};
+        MPI_Dims_create(size, 2, dims);
+        MPI_Cart_create(MPI_COMM_WORLD, 2, dims, periods, 1, &comm);
+        MPI_Comm_rank(comm, &rank);
 
     };
+
+    void makeTypes(int nx, int ny) {
+        nx /= dims[1];
+        ny /= dims[0];
+        MPI_Type_contiguous(nx, MPI_DOUBLE, &row);
+        MPI_Type_vector(ny, 1, nx + 2, MPI_DOUBLE, &col);
+        MPI_Type_commit(&row);
+        MPI_Type_commit(&col);
+        types[0] = row;
+        types[1] = row;
+        types[2] = col;
+        types[3] = col;
+        sdisps[0] = ny * (nx + 2) + 1;
+        sdisps[1] = nx + 3;
+        sdisps[2] = nx + 3;
+        sdisps[3] = 2 * nx + 2;
+        rdisps[0] = (ny + 1) * (nx + 2) + 1;
+        rdisps[1] = 1;
+        rdisps[2] = nx + 2;
+        rdisps[3] = 2 * nx + 3;
+    }
 
 };
 
@@ -44,7 +59,7 @@ struct Field {
 
     Matrix<double> temperature;
 
-    void setup(int nx_in, int ny_in, const ParallelData& parallel);
+    void setup(int nx_in, int ny_in, ParallelData& parallel);
 
     void generate(const ParallelData& parallel);
 
@@ -58,7 +73,7 @@ struct Field {
 
 // Function declarations
 void initialize(int argc, char *argv[], Field& current,
-                Field& previous, int& nsteps, const ParallelData& parallel);
+                Field& previous, int& nsteps, ParallelData& parallel);
 
 void exchange(Field& field, const ParallelData& parallel, MPI_Request* reqs);
 
@@ -69,6 +84,6 @@ void evolve_outer(Field& curr, const Field& prev, const double a, const double d
 void write_field(const Field& field, const int iter, const ParallelData& parallel);
 
 void read_field(Field& field, std::string filename,
-                const ParallelData& parallel);
+                ParallelData& parallel);
 
 double average(const Field& field, const ParallelData& parallel);

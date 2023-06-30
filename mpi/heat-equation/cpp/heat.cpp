@@ -3,17 +3,17 @@
 #include <iostream>
 #include <mpi.h>
 
-void Field::setup(int nx_in, int ny_in, const ParallelData& parallel)
+void Field::setup(int nx_in, int ny_in, ParallelData& parallel)
 {
     nx_full = nx_in;
     ny_full = ny_in;
 
-    nx = nx_full / parallel.size;
-    if (nx * parallel.size != nx_full) {
+    nx = nx_full / parallel.dims[0];
+    ny = ny_full / parallel.dims[1];
+    if (nx * parallel.dims[0] * ny * parallel.dims[1] != nx_full * ny_full) {
         std::cout << "Cannot divide grid evenly to processors" << std::endl;
         MPI_Abort(MPI_COMM_WORLD, -2);
     }
-    ny = ny_full;
 
    // matrix includes also ghost layers
    temperature = Matrix<double> (nx + 2, ny + 2);
