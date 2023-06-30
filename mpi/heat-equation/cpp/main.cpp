@@ -43,8 +43,8 @@ int main(int argc, char **argv)
     // Largest stable time step
     auto dt = dx2 * dy2 / (2.0 * a * (dx2 + dy2));
 
-    MPI_Request* reqs = (MPI_Request*)malloc(sizeof(MPI_Request) * 4);
-    MPI_Status* stats = (MPI_Status*)malloc(sizeof(MPI_Status) * 4);
+    MPI_Request* reqs = (MPI_Request*)malloc(sizeof(MPI_Request) * 1);
+    MPI_Status* stats = (MPI_Status*)malloc(sizeof(MPI_Status) * 1);
 
     //Get the start time stamp
     auto start_clock = MPI_Wtime();
@@ -53,7 +53,7 @@ int main(int argc, char **argv)
     for (int iter = 1; iter <= nsteps; iter++) {
         exchange(previous, parallelization, reqs);
         evolve_inner(current, previous, a, dt);
-        MPI_Waitall(4, reqs, stats);
+        MPI_Waitall(1, reqs, stats);
         evolve_outer(current, previous, a, dt);
         if (iter % image_interval == 0) {
             write_field(current, iter, parallelization);
