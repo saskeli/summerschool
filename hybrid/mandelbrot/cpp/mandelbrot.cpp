@@ -99,7 +99,7 @@ void mandelbrot_block(int *iter_counts, int w, int h, complex<double> cmin,
 int main(int argc, char **argv)
 {
     // Picture size, should be power of two
-    const int w = 512 * 4;
+    const int w = 512 * 16;
     const int h = w;
     int *iter_counts;
 
@@ -109,13 +109,15 @@ int main(int argc, char **argv)
     complex<double> cmin(-1.5, -1.0);
     complex<double> cmax(0.5, 1.0);
 
+    
+
     double t1 = omp_get_wtime();
 
 // TODO create parallel region. How many threads should be calling
 // mandelbrot_block in this uppermost level?
     #pragma omp parallel
     {
-        #pragma omp task
+        #pragma omp single
         mandelbrot_block(iter_counts, w, h, cmin, cmax,
                          0, 0, w, 1);
     }
