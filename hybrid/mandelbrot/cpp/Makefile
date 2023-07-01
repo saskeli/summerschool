@@ -32,7 +32,7 @@ $(COMMONDIR)/pngwriter.o: $(COMMONDIR)/pngwriter.c $(COMMONDIR)/pngwriter.h
 mandelbrot.o: mandelbrot.cpp
 
 pngwriter.o: pngwriter.c pngwriter.h
-	$(CC) $(CCFLAGS) -c -o $@ $<
+	$(CC) $(CCFLAGS) -c -o $@ $< $(LIBS)
 
 $(EXE): $(OBJS) $(OBJS_PNG)
 	$(CC) $(CCFLAGS) $(OBJS) $(OBJS_PNG) -o $@ $(LDFLAGS) $(LIBS)
