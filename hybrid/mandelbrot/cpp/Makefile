@@ -21,10 +21,18 @@ LDFLAGS=
 LIBS=-lpng
 endif
 
+ifeq ($(COMP),lumi)
+LIBPNG_DIR=/appl/lumi/SW/LUMI-22.12/C/EB/libpng/1.6.38-cpeCray-22.12
+CXX=CC
+CC=cc
+CCFLAGS=-O3 -Wall -I$(COMMONDIR) -I$(LIBPNG_DIR)/include
+LDFLAGS=-L$(LIBPNG_DIR)/lib -Wl,-rpath=$(LIBPNG_DIR)/lib
+LIBS=-lpng
+endif
+
 EXE=mandelbrot
 OBJS=mandelbrot.o
 OBJS_PNG=pngwriter.o
-CORRECT_OBJS_PNG=$(COMMONDIR)/pngwriter.o
 
 all: $(EXE)
 
@@ -32,7 +40,7 @@ $(COMMONDIR)/pngwriter.o: $(COMMONDIR)/pngwriter.c $(COMMONDIR)/pngwriter.h
 mandelbrot.o: mandelbrot.cpp
 
 pngwriter.o: pngwriter.c pngwriter.h
-	$(CC) $(CCFLAGS) -c -o $@ $< $(LIBS)
+	$(CC) $(CCFLAGS) -c -o $@ $<
 
 $(EXE): $(OBJS) $(OBJS_PNG)
 	$(CC) $(CCFLAGS) $(OBJS) $(OBJS_PNG) -o $@ $(LDFLAGS) $(LIBS)
