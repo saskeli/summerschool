@@ -13,6 +13,19 @@
 
 double wtime();
 
+namespace std
+{
+    template<class T>
+    void swap(Matrix<T>& a, Matrix<T>& b) {
+        std::swap(a._data, b._data);
+    }
+
+    void swap(Field& a, Field& b) {
+        swap(a.temperature, b.temperature);
+    }
+} // namespace std
+
+
 int main(int argc, char **argv)
 {
 

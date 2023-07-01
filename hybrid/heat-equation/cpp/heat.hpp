@@ -26,6 +26,12 @@ struct Field {
     // standard (i,j) syntax for getting elements
     const double& operator()(int i, int j) const {return temperature(i, j);}
 
+    Field(const Field&) = delete;
+    Field& operator=(const Field&) = delete;
+    Field(Field& rhs) = default;
+    Field& operator=(Field&) = default;
+    Field() = default;
+
 };
 
 // Function declarations

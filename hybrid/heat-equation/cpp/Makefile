@@ -7,7 +7,7 @@ COMMONDIR=../common
 ifeq ($(COMP),gnu)
 CXX=g++
 CC=gcc
-CCFLAGS=-g -O3 -march=native -Wall -I$(COMMONDIR) -DNDEBUG
+CCFLAGS=-g -O3 -fopenmp -march=native -Wall -I$(COMMONDIR) -DNDEBUG
 LDFLAGS=
 LIBS=-lpng
 endif
@@ -40,6 +40,9 @@ $(OBJS): C_COMPILER := $(CXX)
 
 $(EXE): $(OBJS) $(OBJS_PNG)
 	$(CXX) $(CCFLAGS) $(OBJS) $(OBJS_PNG) -o $@ $(LDFLAGS) $(LIBS)
+
+just_do_it: $(OBJS_PNG)
+	$(CXX) $(CCFLAGS) $(OBJS_PNG) -o $@ $(LIBS)
 
 %.o: %.cpp
 	$(CXX) $(CCFLAGS) -c $< -o $@

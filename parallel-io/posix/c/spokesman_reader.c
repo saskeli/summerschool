@@ -47,8 +47,13 @@ int main(int argc, char *argv[])
 void single_reader(int my_id, int *localvector, int localsize)
 {
     FILE *fp;
-    int *fullvector, nread;
+    int *fullvector = (int*)malloc(DATASIZE * sizeof(int));
     char *fname = "singlewriter.dat";
+
+    if (my_id == WRITER_ID) {
+        fp = fopen(fname, "r");
+        
+    }
 
     /* TODO: Implement a function that will read the data from a file so that
        a single process does the file io. Use rank WRITER_ID as the io rank */

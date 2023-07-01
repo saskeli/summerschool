@@ -18,6 +18,7 @@ void Field::generate() {
 
     // Radius of the source disc 
     auto radius = nx_full / 6.0;
+    #pragma omp parallel for default(shared)
     for (int i = 0; i < nx + 2; i++) {
         for (int j = 0; j < ny + 2; j++) {
             // Distance of point i, j from the origin 
@@ -32,17 +33,26 @@ void Field::generate() {
     }
 
     // Boundary conditions
+    #pragma omp parallel sections default(shared)
+    {
+    #pragma omp section
+    {
     for (int i = 0; i < nx + 2; i++) {
         // Left
         temperature(i, 0) = 20.0;
         // Right
         temperature(i, ny + 1) = 70.0;
     }
+    }
 
+    #pragma omp section
+    {
     for (int j = 0; j < ny + 2; j++) {
         // Top
         temperature(0, j) = 85.0;
         // Bottom
         temperature(nx + 1, j) = 5.0;
-        }    
+    }
+    }
+    }    
 }

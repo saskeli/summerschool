@@ -16,7 +16,7 @@ template<typename T>
 class Matrix
 {
 
-private:
+public:
 
     // Internal storage
     std::vector<T> _data;
@@ -30,8 +30,6 @@ private:
         return i * ny + j;
     }
 
-public:
-
     // matrix dimensions
     int nx, ny;
 
@@ -41,6 +39,8 @@ public:
     Matrix(int nx, int ny) : nx(nx), ny(ny) {
         _data.resize(nx * ny);
     };
+
+    Matrix(const Matrix&) = delete;
 
     void allocate(int nx_in, int ny_in) {
         nx = nx_in;
