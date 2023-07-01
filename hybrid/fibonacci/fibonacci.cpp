@@ -18,36 +18,40 @@
  *
  */
 
-#include <cstdio>
 #include <omp.h>
+#include <chrono>
+#include <cstdio>
 
+int fib(int n) {
+    int x, y;
+    if (n < 2) return n;
+    if (n <= 20) {
+        return fib(n - 1) + fib(n - 2);
+    }
+#pragma omp task shared(x)
+    { x = fib(n - 1); }
+#pragma omp task shared(y)
+    { y = fib(n - 2); }
 
-int fib(int n)
-{
-  int x, y;
-  if (n < 2)
-    return n;
-
-  x = fib(n - 1);
-
-  y = fib(n - 2);
-
-  return x+y;
-
+#pragma omp taskwait
+    return x + y;
 }
 
-
-int main()
-{
-  int n,fibonacci;
-  double starttime;
-  printf("Please insert n, to calculate fib(n): \n");
-  scanf("%d",&n);
-  starttime=omp_get_wtime();
-
-  fibonacci=fib(n);
-
-  printf("fib(%d)=%d \n",n,fibonacci);
-  printf("calculation took %lf sec\n",omp_get_wtime()-starttime);
-  return 0;
+int main() {
+    using std::chrono::duration_cast;
+    using std::chrono::high_resolution_clock;
+    using std::chrono::nanoseconds;
+    int n, fibonacci;
+    double starttime;
+    printf("Please insert n, to calculate fib(n): \n");
+    scanf("%d", &n);
+    auto start = high_resolution_clock::now();
+#pragma omp parallel
+#pragma omp single
+    { fibonacci = fib(n); }
+    auto end = high_resolution_clock::now();
+    double time = duration_cast<nanoseconds>(end - start).count();
+    printf("fib(%d)=%d \n", n, fibonacci);
+    printf("calculation took %lf sec\n", time / 1000000000);
+    return 0;
 }
