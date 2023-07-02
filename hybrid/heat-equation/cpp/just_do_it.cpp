@@ -101,10 +101,7 @@ void meta_and_sub(double* senduf) {
     }
     MPI_Datatype tmp;
     MPI_Type_vector(sny, snx, nx, MPI_DOUBLE, &tmp);
-    if (rank == 0) {
-        std::cout << "sizeof(MPI_DOUBLE) = " << sizeof(MPI_DOUBLE) << " <-> " << sizeof(double) << std::endl;
-    }
-    MPI_Type_create_resized(tmp, 0, sizeof(MPI_DOUBLE), &raw_block);
+    MPI_Type_create_resized(tmp, 0, sizeof(double), &raw_block);
     MPI_Type_commit(&raw_block);
     MPI_Type_vector(sny, snx, snx + 2, MPI_DOUBLE, &sub_block);
     MPI_Type_commit(&sub_block);
