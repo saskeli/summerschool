@@ -24,7 +24,7 @@ ifeq ($(COMP),lumi)
 LIBPNG_DIR=/appl/lumi/SW/LUMI-22.12/C/EB/libpng/1.6.38-cpeCray-22.12
 CXX=CC
 CC=cc
-CCFLAGS=-O3 -std=c++20 -Wall -I$(COMMONDIR) -I$(LIBPNG_DIR)/include -DNDEBUG
+CCFLAGS=-O3 -Wall -I$(COMMONDIR) -I$(LIBPNG_DIR)/include -DNDEBUG
 LDFLAGS=-L$(LIBPNG_DIR)/lib -Wl,-rpath=$(LIBPNG_DIR)/lib
 LIBS=-lpng
 endif
@@ -51,7 +51,7 @@ $(EXE): $(OBJS) $(OBJS_PNG)
 	$(CXX) just_do_it.cpp $(CCFLAGS) $(OBJS) $(OBJS_PNG) -o $@ $(LDFLAGS) $(LIBS)
 
 just_do_it: just_do_it.cpp $(OBJS_PNG)
-	$(CXX) $(CCFLAGS) -Wextra -Wshadow -pedantic just_do_it.cpp $(OBJS_PNG) -o $@ $(LDFLAGS) $(LIBS)
+	$(CXX) $(CCFLAGS) -std=c++20 -Wextra -Wshadow -pedantic just_do_it.cpp $(OBJS_PNG) -o $@ $(LDFLAGS) $(LIBS)
 
 %.o: %.cpp
 	$(CXX) $(CCFLAGS) -c $< -o $@
