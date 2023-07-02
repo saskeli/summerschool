@@ -9,6 +9,12 @@
 
 #include "pngwriter.h"
 
+#ifdef DEBUG
+static const constexpr bool debug = true;
+#else
+static const constexpr bool debug = false;
+#endif
+
 static const constexpr double a = 0.5;
 static const constexpr double dx = 0.01;
 static const constexpr double dy = 0.01;
@@ -22,10 +28,10 @@ static MPI_Comm comm;
 static int rank, size;
 static double* raw_sub;
 static double** data_sub;
-static uint32_t nx = 200;
-static uint32_t ny = 200;
-static uint32_t iters = 600;
-static uint32_t stepping = 100;
+static uint32_t nx = 20;
+static uint32_t ny = 20;
+static uint32_t iters = 20;
+static uint32_t stepping = 1;
 static uint32_t snx, sny;
 MPI_Datatype raw_block, sub_block, row, col;
 static int* raw_offsets;
@@ -37,26 +43,26 @@ void init_edges() {
     {
 #pragma omp task
         {
-            for (uint32_t i = 0; i < nx + 2; i++) {
-                data_sub[0][i] = 95.0;
+            for (uint32_t i = 0; i < snx + 2; i++) {
+                data_sub[0][i] = 100.0;
             }
         }
 #pragma omp task
         {
-            for (uint32_t i = 0; i < nx + 2; i++) {
-                data_sub[ny + 1][i] = 95.0;
+            for (uint32_t i = 0; i < snx + 2; i++) {
+                data_sub[sny + 1][i] = 100.0;
             }
         }
 #pragma omp task
         {
-            for (uint32_t i = 1; i <= ny; i++) {
-                data_sub[i][0] = 95.0;
+            for (uint32_t i = 1; i <= sny; i++) {
+                data_sub[i][0] = 100.0;
             }
         }
 #pragma omp task
         {
-            for (uint32_t i = 1; i <= ny; i++) {
-                data_sub[i][nx + 1] = 95.0;
+            for (uint32_t i = 1; i <= sny; i++) {
+                data_sub[i][snx + 1] = 100.0;
             }
         }
     }
@@ -77,12 +83,16 @@ void meta_and_sub(double* senduf) {
         MPI_Abort(comm, 1);
         exit(1);
     }
-    snx = nx / dims[0];
-    sny = ny / dims[1];
+    snx = nx / dims[1];
+    sny = ny / dims[0];
     if (rank == 0) {
+        int ln, rn;
+        MPI_Cart_shift(comm, 1, 1, &ln, &rn);
         std::cout << "Split to " << size << " tasks\n"
                   << "With " << sny << " x " << snx << " sub-block size\n"
-                  << "In " << dims[0] << " x " << dims[1] << " grid" << std::endl;
+                  << "In " << dims[0] << " x " << dims[1] << " grid\n"
+                  << "To my left is " << ln << " and right is " << rn
+                  << std::endl;
     }
     raw_sub = (double*)malloc((2 + snx) * (2 + sny) * sizeof(double));
     data_sub = (double**)malloc((2 + sny) * sizeof(double*));
@@ -104,13 +114,24 @@ void meta_and_sub(double* senduf) {
     send_counts = (int*)malloc(size * sizeof(int));
     for (int r = 0; r < dims[0]; r++) {
         for (int c = 0; c < dims[1]; c++) {
-            raw_offsets[r * dims[1] + c] = r * sny * nx + c * nx;
+            raw_offsets[r * dims[1] + c] = r * sny * nx + c * snx;
             send_counts[r * dims[1] + c] = 1;
         }
     }
 
-    MPI_Scatterv(senduf, send_counts, raw_offsets, sub_block, raw_sub, 1,
-                 raw_block, 0, comm);
+    if (rank == 0) {
+        std::cout << "Raw offsets:\n";
+        for (int r = 0; r < dims[0]; r++) {
+            for (int c = 0; c < dims[1]; c++) {
+                std::cout << r * dims[1] + c << ": "
+                          << raw_offsets[r * dims[1] + c] << " ";
+            }
+            std::cout << std::endl;
+        }
+    }
+
+    MPI_Scatterv(senduf, send_counts, raw_offsets, raw_block, raw_sub + snx + 3,
+                 1, sub_block, 0, comm);
     init_edges();
 }
 
@@ -134,98 +155,175 @@ double* read_file(char const* fname) {
 }
 
 double* defdef() {
+    uint32_t cut = nx / 10;
     double* raw = (double*)calloc(nx * ny, sizeof(double));
-    std::fill(raw, raw + nx * 25, double(95));
-    for (uint32_t i = 25; i < ny - 25; i++) {
+    std::fill(raw, raw + nx * cut, double(95));
+    for (uint32_t i = cut; i < ny - cut; i++) {
         double* rp = raw + nx * i;
-        std::fill(rp, rp + 75, double(95));
-        std::fill(rp + 125, rp + nx, double(95));
+        std::fill(rp, rp + (nx / 2 - cut), double(95));
+        std::fill(rp + nx / 2 + cut, rp + nx, double(95));
     }
-    std::fill(raw + nx * (ny - 25), raw + nx * ny, double(95));
+    std::fill(raw + nx * (ny - cut), raw + nx * ny, double(95));
     return raw;
 }
 
 void simulate(double* raw) {
-    MPI_Aint sdisps[] = {sny * (snx + 2) + 1, snx + 3, snx + 3, 2 * snx + 2};
-    MPI_Aint rdisps[] = {(sny + 1) * (snx + 2) + 1, 1, snx + 2, 2 * snx + 3};
+    MPI_Aint sdisps[] = {snx + 3, sny * (snx + 2) + 1, snx + 3, 2 * snx + 2};
+    MPI_Aint rdisps[] = {1, (sny + 1) * (snx + 2) + 1, snx + 2, 2 * snx + 3};
+    for (uint32_t i = 0; i < 4; i++) {
+        sdisps[i] = sizeof(double) * sdisps[i];
+        rdisps[i] = sizeof(double) * rdisps[i];
+    }
     MPI_Datatype types[] = {row, row, col, col};
     uint32_t nc = 0;
+    if constexpr (debug) {
+        for (int worker = 0; worker < size; worker++) {
+            if (rank == worker) {
+                std::cout << "worker " << rank << " initial data:" << std::endl;
+                for (uint32_t r = 0; r < sny + 2; r++) {
+                    for (uint32_t c = 0; c < snx + 2; c++) {
+                        std::cout << data_sub[r][c] << " ";
+                    }
+                    std::cout << std::endl;
+                }
+            }
+            MPI_Barrier(comm);
+        }
+    }
     for (uint32_t t = 0; t < iters; t++) {
         MPI_Request req;
         MPI_Ineighbor_alltoallw(raw_sub, counts, sdisps, types, raw_sub, counts,
                                 rdisps, types, comm, &req);
 #pragma omp parallel for
-        for (uint32_t r = 1; r <= sny; r++) {
-            for (uint32_t c = 1; c < snx; c++) {
+        for (uint32_t r = 2; r < sny; r++) {
+            for (uint32_t c = 2; c < snx; c++) {
                 data_sub[r][c] =
                     data_sub[r][c] +
                     a * dt *
-                        ((data_sub[r + 1][c] - 2.0 * data_sub[r][c] + data_sub[r - 1][c]) *
+                        ((data_sub[r + 1][c] - 2.0 * data_sub[r][c] +
+                          data_sub[r - 1][c]) *
                              inv_dx2 +
-                         (data_sub[r][c + 1] - 2.0 * data_sub[r][c] + data_sub[r][c - 1]) *
+                         (data_sub[r][c + 1] - 2.0 * data_sub[r][c] +
+                          data_sub[r][c - 1]) *
                              inv_dy2);
             }
         }
         MPI_Status stat;
         MPI_Wait(&req, &stat);
-        #pragma omp parallel
-        {
-            #pragma omp task
-        {
-            for (uint32_t i = 1; i <= snx; i++) {
-                data_sub[1][i] = 
-                    data_sub[1][i] +
-                    a * dt *
-                        ((data_sub[1 + 1][i] - 2.0 * data_sub[1][i] + data_sub[1 - 1][i]) *
-                             inv_dx2 +
-                         (data_sub[1][i + 1] - 2.0 * data_sub[1][i] + data_sub[1][i - 1]) *
-                             inv_dy2);
+        if constexpr (debug) {
+            if (t == 0) {
+                MPI_Barrier(comm);
+                for (int worker = 0; worker < size; worker++) {
+                    if (rank == worker) {
+                        std::cout << "worker " << rank << " edges " << t
+                                  << " data:" << std::endl;
+                        for (uint32_t r = 0; r < sny + 2; r++) {
+                            for (uint32_t c = 0; c < snx + 2; c++) {
+                                std::cout << data_sub[r][c] << " ";
+                            }
+                            std::cout << std::endl;
+                        }
+                    }
+                    MPI_Barrier(comm);
+                }
             }
         }
+#pragma omp parallel
+        {
 #pragma omp task
-        {
-            for (uint32_t i = 1; i <= snx; i++) {
-                data_sub[sny][i] = 
-                    data_sub[sny][i] +
-                    a * dt *
-                        ((data_sub[sny + 1][i] - 2.0 * data_sub[sny][i] + data_sub[sny - 1][i]) *
-                             inv_dx2 +
-                         (data_sub[sny][i + 1] - 2.0 * data_sub[sny][i] + data_sub[sny][i - 1]) *
-                             inv_dy2);
+            {
+                for (uint32_t i = 1; i <= snx; i++) {
+                    data_sub[1][i] =
+                        data_sub[1][i] +
+                        a * dt *
+                            ((data_sub[1 + 1][i] - 2.0 * data_sub[1][i] +
+                              data_sub[1 - 1][i]) *
+                                 inv_dx2 +
+                             (data_sub[1][i + 1] - 2.0 * data_sub[1][i] +
+                              data_sub[1][i - 1]) *
+                                 inv_dy2);
+                }
             }
-        }
 #pragma omp task
-        {
-            for (uint32_t i = 1; i <= sny; i++) {
-                data_sub[i][1] = 
-                    data_sub[i][1] +
-                    a * dt *
-                        ((data_sub[i + 1][1] - 2.0 * data_sub[i][1] + data_sub[i - 1][1]) *
-                             inv_dx2 +
-                         (data_sub[i][1 + 1] - 2.0 * data_sub[i][1] + data_sub[i][1 - 1]) *
-                             inv_dy2);
+            {
+                for (uint32_t i = 1; i <= snx; i++) {
+                    data_sub[sny][i] =
+                        data_sub[sny][i] +
+                        a * dt *
+                            ((data_sub[sny + 1][i] - 2.0 * data_sub[sny][i] +
+                              data_sub[sny - 1][i]) *
+                                 inv_dx2 +
+                             (data_sub[sny][i + 1] - 2.0 * data_sub[sny][i] +
+                              data_sub[sny][i - 1]) *
+                                 inv_dy2);
+                }
             }
-        }
 #pragma omp task
-        {
-            for (uint32_t i = 1; i <= sny; i++) {
-                data_sub[i][snx + 1] = 
-                    data_sub[i][sny] +
-                    a * dt *
-                        ((data_sub[i + 1][sny] - 2.0 * data_sub[i][sny] + data_sub[i - 1][sny]) *
-                             inv_dx2 +
-                         (data_sub[i][sny + 1] - 2.0 * data_sub[i][sny] + data_sub[i][sny - 1]) *
-                             inv_dy2);
+            {
+                for (uint32_t i = 1; i <= sny; i++) {
+                    data_sub[i][1] =
+                        data_sub[i][1] +
+                        a * dt *
+                            ((data_sub[i + 1][1] - 2.0 * data_sub[i][1] +
+                              data_sub[i - 1][1]) *
+                                 inv_dx2 +
+                             (data_sub[i][1 + 1] - 2.0 * data_sub[i][1] +
+                              data_sub[i][1 - 1]) *
+                                 inv_dy2);
+                }
             }
-        }
+#pragma omp task
+            {
+                for (uint32_t i = 1; i <= sny; i++) {
+                    data_sub[i][snx] =
+                        data_sub[i][snx] +
+                        a * dt *
+                            ((data_sub[i + 1][snx] - 2.0 * data_sub[i][snx] +
+                              data_sub[i - 1][snx]) *
+                                 inv_dx2 +
+                             (data_sub[i][snx + 1] - 2.0 * data_sub[i][snx] +
+                              data_sub[i][snx - 1]) *
+                                 inv_dy2);
+                }
+            }
         }
         if (nc == t) {
-            MPI_Gatherv(raw_sub, 1, sub_block, raw, counts, raw_offsets, raw_block, 0, comm);
+            MPI_Gatherv(raw_sub + snx + 3, 1, sub_block, raw, counts,
+                        raw_offsets, raw_block, 0, comm);
             if (rank == 0) {
                 write(raw, t);
+                if constexpr (debug) {
+                    if (t == 0) {
+                        std::cout << "iter " << t << " total:\n";
+                        for (uint32_t r = 0; r < ny; r++) {
+                            for (uint32_t c = 0; c < nx; c++) {
+                                std::cout << raw[r * nx + c] << " ";
+                            }
+                            std::cout << std::endl;
+                        }
+                    }
+                }
             }
             nc += stepping;
             MPI_Barrier(comm);
+        }
+        if constexpr (debug) {
+            if (t == 0) {
+                MPI_Barrier(comm);
+                for (int worker = 0; worker < size; worker++) {
+                    if (rank == worker) {
+                        std::cout << "worker " << rank << " iter " << t
+                                  << " data:" << std::endl;
+                        for (uint32_t r = 0; r < sny + 2; r++) {
+                            for (uint32_t c = 0; c < snx + 2; c++) {
+                                std::cout << data_sub[r][c] << " ";
+                            }
+                            std::cout << std::endl;
+                        }
+                    }
+                    MPI_Barrier(comm);
+                }
+            }
         }
     }
 }
@@ -259,7 +357,7 @@ int main(int argc, char* argv[]) {
     if (argc > 3) {
         stepping = atoll(argv[3]);
     }
-
+    std::cout << "Debug " << (debug ? "enabled" : "disabled") << std::endl;
     std::cout << "Got " << ny << " x " << nx << " input array\n"
               << "Iterations: " << iters << "\n"
               << "Stepping: " << stepping << std::endl;
