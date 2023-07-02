@@ -51,7 +51,7 @@ $(EXE): $(OBJS) $(OBJS_PNG)
 	$(CXX) just_do_it.cpp $(CCFLAGS) $(OBJS) $(OBJS_PNG) -o $@ $(LDFLAGS) $(LIBS)
 
 just_do_it: just_do_it.cpp $(OBJS_PNG)
-	$(CXX) $(CCFLAGS) -Wextra -Wshadow -pedantic just_do_it.cpp $(OBJS_PNG) -o $@ $(LIBS)
+	$(CXX) $(CCFLAGS) -Wextra -Wshadow -pedantic just_do_it.cpp $(OBJS_PNG) -o $@ $(LDFLAGS) $(LIBS)
 
 %.o: %.cpp
 	$(CXX) $(CCFLAGS) -c $< -o $@
