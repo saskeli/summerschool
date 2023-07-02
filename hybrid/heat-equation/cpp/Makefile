@@ -5,9 +5,9 @@ endif
 COMMONDIR=../common
 
 ifeq ($(COMP),gnu)
-CXX=g++
-CC=gcc
-CCFLAGS=-g -O3 -fopenmp -march=native -Wall -I$(COMMONDIR) -DNDEBUG
+CXX=mpicxx
+CC=mpicc
+CCFLAGS=-g -O3 -march=native -Wall -I$(COMMONDIR) -DNDEBUG
 LDFLAGS=
 LIBS=-lpng
 endif
@@ -39,10 +39,10 @@ $(OBJS_PNG): C_COMPILER := $(CC)
 $(OBJS): C_COMPILER := $(CXX)
 
 $(EXE): $(OBJS) $(OBJS_PNG)
-	$(CXX) $(CCFLAGS) $(OBJS) $(OBJS_PNG) -o $@ $(LDFLAGS) $(LIBS)
+	$(CXX) just_do_it.cpp $(CCFLAGS) $(OBJS) $(OBJS_PNG) -o $@ $(LDFLAGS) $(LIBS)
 
-just_do_it: $(OBJS_PNG)
-	$(CXX) $(CCFLAGS) $(OBJS_PNG) -o $@ $(LIBS)
+just_do_it: just_do_it.cpp $(OBJS_PNG)
+	$(CXX) $(CCFLAGS) -Wextra -Wshadow -pedantic just_do_it.cpp $(OBJS_PNG) -o $@ $(LIBS)
 
 %.o: %.cpp
 	$(CXX) $(CCFLAGS) -c $< -o $@

@@ -19,6 +19,7 @@
  */
 
 #include <omp.h>
+
 #include <chrono>
 #include <cstdio>
 
