@@ -26,8 +26,10 @@ static int dims[2];
 static const int periods[] = {0, 0};
 static MPI_Comm comm;
 static int rank, size;
-static double* raw_sub;
-static double** data_sub;
+static double* raw_subA;
+static double* raw_subB;
+static double** data_subA;
+static double** data_subB;
 static uint32_t nx = 20;
 static uint32_t ny = 20;
 static uint32_t iters = 20;
@@ -44,25 +46,25 @@ void init_edges() {
 #pragma omp task
         {
             for (uint32_t i = 0; i < snx + 2; i++) {
-                data_sub[0][i] = 100.0;
+                data_subA[0][i] = 100.0;
             }
         }
 #pragma omp task
         {
             for (uint32_t i = 0; i < snx + 2; i++) {
-                data_sub[sny + 1][i] = 100.0;
+                data_subA[sny + 1][i] = 100.0;
             }
         }
 #pragma omp task
         {
             for (uint32_t i = 1; i <= sny; i++) {
-                data_sub[i][0] = 100.0;
+                data_subA[i][0] = 100.0;
             }
         }
 #pragma omp task
         {
             for (uint32_t i = 1; i <= sny; i++) {
-                data_sub[i][snx + 1] = 100.0;
+                data_subA[i][snx + 1] = 100.0;
             }
         }
     }
@@ -94,10 +96,13 @@ void meta_and_sub(double* senduf) {
                   << "To my left is " << ln << " and right is " << rn
                   << std::endl;
     }
-    raw_sub = (double*)malloc((2 + snx) * (2 + sny) * sizeof(double));
-    data_sub = (double**)malloc((2 + sny) * sizeof(double*));
+    raw_subA = (double*)malloc((2 + snx) * (2 + sny) * sizeof(double));
+    data_subA = (double**)malloc((2 + sny) * sizeof(double*));
+    raw_subB = (double*)malloc((2 + snx) * (2 + sny) * sizeof(double));
+    data_subB = (double**)malloc((2 + sny) * sizeof(double*));
     for (uint32_t r = 0; r < sny + 2; r++) {
-        data_sub[r] = raw_sub + (r * (snx + 2));
+        data_subA[r] = raw_subA + (r * (snx + 2));
+        data_subB[r] = raw_subB + (r * (snx + 2));
     }
     MPI_Datatype tmp;
     MPI_Type_vector(sny, snx, nx, MPI_DOUBLE, &tmp);
@@ -130,7 +135,7 @@ void meta_and_sub(double* senduf) {
         }
     }
 
-    MPI_Scatterv(senduf, send_counts, raw_offsets, raw_block, raw_sub + snx + 3,
+    MPI_Scatterv(senduf, send_counts, raw_offsets, raw_block, raw_subA + snx + 3,
                  1, sub_block, 0, comm);
     init_edges();
 }
@@ -182,7 +187,7 @@ void simulate(double* raw) {
                 std::cout << "worker " << rank << " initial data:" << std::endl;
                 for (uint32_t r = 0; r < sny + 2; r++) {
                     for (uint32_t c = 0; c < snx + 2; c++) {
-                        std::cout << data_sub[r][c] << " ";
+                        std::cout << data_subA[r][c] << " ";
                     }
                     std::cout << std::endl;
                 }
@@ -192,19 +197,19 @@ void simulate(double* raw) {
     }
     for (uint32_t t = 0; t < iters; t++) {
         MPI_Request req;
-        MPI_Ineighbor_alltoallw(raw_sub, counts, sdisps, types, raw_sub, counts,
+        MPI_Ineighbor_alltoallw(raw_subA, counts, sdisps, types, raw_subA, counts,
                                 rdisps, types, comm, &req);
 #pragma omp parallel for
         for (uint32_t r = 2; r < sny; r++) {
             for (uint32_t c = 2; c < snx; c++) {
-                data_sub[r][c] =
-                    data_sub[r][c] +
+                data_subB[r][c] =
+                    data_subA[r][c] +
                     a * dt *
-                        ((data_sub[r + 1][c] - 2.0 * data_sub[r][c] +
-                          data_sub[r - 1][c]) *
+                        ((data_subA[r + 1][c] - 2.0 * data_subA[r][c] +
+                          data_subA[r - 1][c]) *
                              inv_dx2 +
-                         (data_sub[r][c + 1] - 2.0 * data_sub[r][c] +
-                          data_sub[r][c - 1]) *
+                         (data_subA[r][c + 1] - 2.0 * data_subA[r][c] +
+                          data_subA[r][c - 1]) *
                              inv_dy2);
             }
         }
@@ -219,7 +224,7 @@ void simulate(double* raw) {
                                   << " data:" << std::endl;
                         for (uint32_t r = 0; r < sny + 2; r++) {
                             for (uint32_t c = 0; c < snx + 2; c++) {
-                                std::cout << data_sub[r][c] << " ";
+                                std::cout << data_subA[r][c] << " ";
                             }
                             std::cout << std::endl;
                         }
@@ -233,62 +238,62 @@ void simulate(double* raw) {
 #pragma omp task
             {
                 for (uint32_t i = 1; i <= snx; i++) {
-                    data_sub[1][i] =
-                        data_sub[1][i] +
+                    data_subB[1][i] =
+                        data_subA[1][i] +
                         a * dt *
-                            ((data_sub[1 + 1][i] - 2.0 * data_sub[1][i] +
-                              data_sub[1 - 1][i]) *
+                            ((data_subA[1 + 1][i] - 2.0 * data_subA[1][i] +
+                              data_subA[1 - 1][i]) *
                                  inv_dx2 +
-                             (data_sub[1][i + 1] - 2.0 * data_sub[1][i] +
-                              data_sub[1][i - 1]) *
+                             (data_subA[1][i + 1] - 2.0 * data_subA[1][i] +
+                              data_subA[1][i - 1]) *
                                  inv_dy2);
                 }
             }
 #pragma omp task
             {
                 for (uint32_t i = 1; i <= snx; i++) {
-                    data_sub[sny][i] =
-                        data_sub[sny][i] +
+                    data_subB[sny][i] =
+                        data_subA[sny][i] +
                         a * dt *
-                            ((data_sub[sny + 1][i] - 2.0 * data_sub[sny][i] +
-                              data_sub[sny - 1][i]) *
+                            ((data_subA[sny + 1][i] - 2.0 * data_subA[sny][i] +
+                              data_subA[sny - 1][i]) *
                                  inv_dx2 +
-                             (data_sub[sny][i + 1] - 2.0 * data_sub[sny][i] +
-                              data_sub[sny][i - 1]) *
+                             (data_subA[sny][i + 1] - 2.0 * data_subA[sny][i] +
+                              data_subA[sny][i - 1]) *
                                  inv_dy2);
                 }
             }
 #pragma omp task
             {
                 for (uint32_t i = 1; i <= sny; i++) {
-                    data_sub[i][1] =
-                        data_sub[i][1] +
+                    data_subB[i][1] =
+                        data_subA[i][1] +
                         a * dt *
-                            ((data_sub[i + 1][1] - 2.0 * data_sub[i][1] +
-                              data_sub[i - 1][1]) *
+                            ((data_subA[i + 1][1] - 2.0 * data_subA[i][1] +
+                              data_subA[i - 1][1]) *
                                  inv_dx2 +
-                             (data_sub[i][1 + 1] - 2.0 * data_sub[i][1] +
-                              data_sub[i][1 - 1]) *
+                             (data_subA[i][1 + 1] - 2.0 * data_subA[i][1] +
+                              data_subA[i][1 - 1]) *
                                  inv_dy2);
                 }
             }
 #pragma omp task
             {
                 for (uint32_t i = 1; i <= sny; i++) {
-                    data_sub[i][snx] =
-                        data_sub[i][snx] +
+                    data_subB[i][snx] =
+                        data_subA[i][snx] +
                         a * dt *
-                            ((data_sub[i + 1][snx] - 2.0 * data_sub[i][snx] +
-                              data_sub[i - 1][snx]) *
+                            ((data_subA[i + 1][snx] - 2.0 * data_subA[i][snx] +
+                              data_subA[i - 1][snx]) *
                                  inv_dx2 +
-                             (data_sub[i][snx + 1] - 2.0 * data_sub[i][snx] +
-                              data_sub[i][snx - 1]) *
+                             (data_subA[i][snx + 1] - 2.0 * data_subA[i][snx] +
+                              data_subA[i][snx - 1]) *
                                  inv_dy2);
                 }
             }
         }
         if (nc == t) {
-            MPI_Gatherv(raw_sub + snx + 3, 1, sub_block, raw, counts,
+            MPI_Gatherv(raw_subB + snx + 3, 1, sub_block, raw, counts,
                         raw_offsets, raw_block, 0, comm);
             if (rank == 0) {
                 write(raw, t);
@@ -316,7 +321,7 @@ void simulate(double* raw) {
                                   << " data:" << std::endl;
                         for (uint32_t r = 0; r < sny + 2; r++) {
                             for (uint32_t c = 0; c < snx + 2; c++) {
-                                std::cout << data_sub[r][c] << " ";
+                                std::cout << data_subB[r][c] << " ";
                             }
                             std::cout << std::endl;
                         }
@@ -325,7 +330,15 @@ void simulate(double* raw) {
                 }
             }
         }
+        std::swap(raw_subA, raw_subB);
+        std::swap(data_subA, data_subB);
     }
+    free(data_subA);
+    free(data_subB);
+    free(raw_subA);
+    free(raw_subB);
+    free(raw_offsets);
+    free(send_counts);
 }
 
 void slave() {
@@ -373,6 +386,7 @@ int main(int argc, char* argv[]) {
     auto end = high_resolution_clock::now();
     double time = duration_cast<nanoseconds>(end - start).count();
     std::cout << "Simulation took " << time / 1000000 << "ms" << std::endl;
+    free(raw);
     MPI_Finalize();
     return 0;
 }
