@@ -1,11 +1,14 @@
 #include <mpi.h>
-
 #include <chrono>
 #include <cstdint>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <string>
+
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 #include "pngwriter.h"
 
@@ -374,6 +377,9 @@ int main(int argc, char* argv[]) {
     std::cout << "Got " << ny << " x " << nx << " input array\n"
               << "Iterations: " << iters << "\n"
               << "Stepping: " << stepping << std::endl;
+#ifdef _OPENMP
+    std::cout << "I have " << omp_get_max_threads() << " threads" << std::endl;
+#endif
 
     meta_and_sub(raw);
 
