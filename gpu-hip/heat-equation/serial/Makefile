@@ -15,7 +15,7 @@ endif
 ifeq ($(COMP),gnu)
 CXX=g++
 CC=gcc
-CCFLAGS=-O3 -fopenmp -Wall -Wextra -Wshadow -pedantic -I$(COMMONDIR)
+CCFLAGS=-O3 -fopenmp -Wall -Wextra -Wshadow -pedantic -I$(COMMONDIR) -I/opt/rocm/include
 LDFLAGS=
 LIBS=-lpng
 endif
@@ -32,7 +32,7 @@ ifeq ($(COMP),lumi)
 LIBPNG_DIR=/appl/lumi/SW/LUMI-22.12/C/EB/libpng/1.6.38-cpeCray-22.12
 CXX=CC
 CC=cc
-CCFLAGS=-O3 -fopenmp -Wall -I$(COMMONDIR) -I$(LIBPNG_DIR)/include -DNDEBUG
+CCFLAGS=-O3 -fopenmp -Wall -xhip -I$(COMMONDIR) -I$(LIBPNG_DIR)/include -DNDEBUG
 LDFLAGS=-L$(LIBPNG_DIR)/lib -Wl,-rpath=$(LIBPNG_DIR)/lib
 LIBS=-lpng
 endif

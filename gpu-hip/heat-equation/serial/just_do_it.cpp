@@ -97,7 +97,7 @@ int main(int argc, char* argv[]) {
         hipStreamSynchronize(t);
         if (nc == t) {
             hipMemcpy(rawA, B_, sizeof(double) * nx * ny, hipMemcpyDeviceToHost);
-            write(rawB, t);
+            write(rawA, t);
             nc += stepping;
         }
 
@@ -108,6 +108,5 @@ int main(int argc, char* argv[]) {
     double time = duration_cast<nanoseconds>(end - start).count();
     std::cout << "Simulation took " << time / 1000000 << "ms" << std::endl;
     free(rawA);
-    free(rawB);
     return 0;
 }
