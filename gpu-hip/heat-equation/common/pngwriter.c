@@ -139,10 +139,10 @@ int save_png(double *data, const int height, const int width,
                  PNG_INTERLACE_NONE,
                  PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
 
-    row_pointers = png_malloc(pngstruct_ptr, height * sizeof(png_byte *));
+    row_pointers = (png_byte**)png_malloc(pngstruct_ptr, height * sizeof(png_byte *));
 
     for (i = 0; i < height; i++) {
-        png_byte *row = png_malloc(pngstruct_ptr,
+        png_byte *row = (png_byte*)png_malloc(pngstruct_ptr,
                                    sizeof(uint8_t) * width * pixel_size);
         row_pointers[i] = row;
 
