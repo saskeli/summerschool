@@ -80,7 +80,7 @@ int main(int argc, char* argv[]) {
 
     uint32_t nc = 0;
     for (uint32_t t = 0; t < iters; t++) {
-        #pragma omp target teams distribute parallel for map(to:rawA[nx * ny],from:rawB[nx * ny])
+        #pragma omp target teams distribute parallel for map(to:rawA[0:nx * ny]) map(from:rawB[0:nx * ny])
         for (uint32_t r = 1; r < ny - 1; r++) {
             for (uint32_t c = 1; c < nx - 1; c++) {
                 rawB[r * nx + c] =
