@@ -25,15 +25,22 @@ static double* rawA;
 static double* A_;
 static double* B_;
 
+using std::chrono::duration_cast;
+using std::chrono::high_resolution_clock;
+using std::chrono::nanoseconds;
+
 __global__ void heat(double* memA, double* memB, uint32_t nx) {
+    auto start = high_resolution_clock::now();
     uint32_t i = blockIdx.x * blockDim.x + threadIdx.x + nx;
     memB[i] =
         memA[i] + a * dt *
                       ((memA[i + nx] - 2.0 * memA[i] + memA[i - nx]) * inv_dx2 +
                        (memA[i + 1] - 2.0 * memA[i] + memA[i - 1]) * inv_dy2);
+    auto end = high_resolution_clock::now();
+    return duration_cast<nanoseconds>(end - start).count();
 }
 
-void write(double* data, uint32_t t) {
+double write(double* data, uint32_t t) {
     std::ostringstream filename_stream;
     filename_stream << "heat_" << std::setw(4) << std::setfill('0') << t
                     << ".png";
@@ -85,9 +92,7 @@ int main(int argc, char* argv[]) {
     dim3 blocks(2 * (ny - 2));
     dim3 threads(nx / 2);
 
-    using std::chrono::duration_cast;
-    using std::chrono::high_resolution_clock;
-    using std::chrono::nanoseconds;
+    double png_time = 0;
 
     auto start = high_resolution_clock::now();
 
@@ -96,7 +101,7 @@ int main(int argc, char* argv[]) {
         heat<<<blocks, threads, 0, 0>>>(A_, B_, nx);
         if (nc == t) {
             hipMemcpy(rawA, B_, sizeof(double) * nx * ny, hipMemcpyDeviceToHost);
-            write(rawA, t);
+            png_time += write(rawA, t);
             nc += stepping;
         }
 
@@ -106,6 +111,7 @@ int main(int argc, char* argv[]) {
     auto end = high_resolution_clock::now();
     double time = duration_cast<nanoseconds>(end - start).count();
     std::cout << "Simulation took " << time / 1000000 << "ms" << std::endl;
+    std::cout << "Writing PNG files was " << time / 1000000 << "ms of that" << std::endl;
     free(rawA);
     return 0;
 }
