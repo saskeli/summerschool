@@ -27,7 +27,7 @@ void write(double* data, uint32_t t) {
     filename_stream << "heat_" << std::setw(4) << std::setfill('0') << t
                     << ".png";
     std::string filename = filename_stream.str();
-    save_png(data, ny + 2, nx + 2, filename.c_str(), 'c');
+    save_png(data, ny, nx, filename.c_str(), 'c');
 }
 
 void read_file(char const* fname) {
@@ -36,10 +36,8 @@ void read_file(char const* fname) {
     in >> risuaita >> nx >> ny;
     rawA = (double*)malloc(nx * ny * sizeof(double));
     rawB = (double*)malloc(nx * ny * sizeof(double));
-    for (uint32_t r = 0; r < ny; r++) {
-        for (uint32_t c = 0; c < nx; c++) {
-            in >> rawA[r * nx + c];
-        }
+    for (uint32_t i = 0; i < nx * ny; i++) {
+        in >> rawA[i];
     }
 }
 
@@ -80,7 +78,13 @@ int main(int argc, char* argv[]) {
 
     uint32_t nc = 0;
     for (uint32_t t = 0; t < iters; t++) {
-        #pragma omp target teams distribute parallel for map(to:rawA[0:nx * ny]) map(from:rawB[0:nx * ny])
+        #pragma omp target teams distribute parallel for map(to:rawA[0:nx*ny]) map(from:rawB[0:nx*ny])
+        for (uint32_t i = nx; i < (ny - 1) * nx; i++) {
+            rawB[i] = rawA[i] + a * dt * ((rawA[i + nx] - 2.0 * rawA[i] + rawA[i - nx]) * inv_dx2 +
+                                          (rawA[i + 1] - 2.0 * rawA[i] + rawA[i - 1]) * inv_dy2);
+        }
+
+/*#pragma omp parallel for
         for (uint32_t r = 1; r < ny - 1; r++) {
             for (uint32_t c = 1; c < nx - 1; c++) {
                 rawB[r * nx + c] =
@@ -93,7 +97,7 @@ int main(int argc, char* argv[]) {
                           rawA[r * nx + (c - 1)]) *
                              inv_dy2);
             }
-        }
+        }*/
 
         if (nc == t) {
             write(rawB, t);
