@@ -28,6 +28,15 @@ LDFLAGS=
 LIBS=-lpng
 endif
 
+ifeq ($(COMP),lumi)
+LIBPNG_DIR=/appl/lumi/SW/LUMI-22.12/C/EB/libpng/1.6.38-cpeCray-22.12
+CXX=CC
+CC=cc
+CCFLAGS=-O3 -fopenmp -Wall -I$(COMMONDIR) -I$(LIBPNG_DIR)/include -DNDEBUG
+LDFLAGS=-L$(LIBPNG_DIR)/lib -Wl,-rpath=$(LIBPNG_DIR)/lib
+LIBS=-lpng
+endif
+
 EXE=heat_serial
 OBJS=main.o core.o setup.o utilities.o io.o
 OBJS_PNG=$(COMMONDIR)/pngwriter.o
