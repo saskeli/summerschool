@@ -95,17 +95,23 @@ int main(int argc, char* argv[]) {
     double png_time = 0;
 
     auto start = high_resolution_clock::now();
-
+    #pragma omp parallel single default(shared)
+    {
     uint32_t nc = 0;
     for (uint32_t t = 0; t < iters; t++) {
         heat<<<blocks, threads, 0, 0>>>(A_, B_, nx);
         if (nc == t) {
             hipMemcpy(rawA, B_, sizeof(double) * nx * ny, hipMemcpyDeviceToHost);
+            #pragma omp barrier
+            #pragma omp task
+            {
             png_time += write(rawA, t);
+            }
             nc += stepping;
         }
 
         std::swap(A_, B_);
+    }
     }
 
     auto end = high_resolution_clock::now();
