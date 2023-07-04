@@ -111,7 +111,9 @@ int main(int argc, char* argv[]) {
     auto end = high_resolution_clock::now();
     double time = duration_cast<nanoseconds>(end - start).count();
     std::cout << "Simulation took " << time / 1000000 << "ms" << std::endl;
-    std::cout << "Writing PNG files was " << time / 1000000 << "ms of that" << std::endl;
+    std::cout << "Writing PNG files was " << png_time / 1000000 << "ms of that" << std::endl;
     free(rawA);
+    hipFree((void*)A_);
+    hipFree((void*)B_);
     return 0;
 }
