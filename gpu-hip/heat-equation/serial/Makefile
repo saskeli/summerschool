@@ -15,7 +15,7 @@ endif
 ifeq ($(COMP),gnu)
 CXX=g++
 CC=gcc
-CCFLAGS=-g -O3 -fopenmp -Wall -I$(COMMONDIR)
+CCFLAGS=-O3 -fopenmp -Wall -Wextra -Wshadow -pedantic -I$(COMMONDIR)
 LDFLAGS=
 LIBS=-lpng
 endif
@@ -47,6 +47,9 @@ $(OBJS): C_COMPILER := $(CXX)
 
 $(EXE): $(OBJS) $(OBJS_PNG)
 	$(CXX) $(CCFLAGS) $(OBJS) $(OBJS_PNG) -o $@ $(LDFLAGS) $(LIBS)
+
+just_do_it: $(OBJS_PNG) just_do_it.cpp
+	$(CXX) $(CCFLAGS) just_do_it.cpp $(OBJS_PNG) -o $@ $(LDFLAGS) $(LIBS)
 
 %.o: %.cpp
 	$(CXX) $(CCFLAGS) -c $< -o $@

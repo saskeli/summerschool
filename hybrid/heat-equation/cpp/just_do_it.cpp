@@ -1,4 +1,5 @@
 #include <mpi.h>
+
 #include <chrono>
 #include <cstdint>
 #include <fstream>
@@ -44,32 +45,13 @@ static int* send_counts;
 static const int counts[] = {1, 1, 1, 1};
 
 void init_edges() {
-#pragma omp parallel
-    {
-#pragma omp task
-        {
-            for (uint32_t i = 0; i < snx + 2; i++) {
-                data_subA[0][i] = 100.0;
-            }
-        }
-#pragma omp task
-        {
-            for (uint32_t i = 0; i < snx + 2; i++) {
-                data_subA[sny + 1][i] = 100.0;
-            }
-        }
-#pragma omp task
-        {
-            for (uint32_t i = 1; i <= sny; i++) {
-                data_subA[i][0] = 100.0;
-            }
-        }
-#pragma omp task
-        {
-            for (uint32_t i = 1; i <= sny; i++) {
-                data_subA[i][snx + 1] = 100.0;
-            }
-        }
+    for (uint32_t i = 0; i < snx + 2; i++) {
+        data_subA[0][i] = 100.0;
+        data_subA[sny + 1][i] = 100.0;
+    }
+    for (uint32_t i = 1; i <= sny; i++) {
+        data_subA[i][0] = 100.0;
+        data_subA[i][snx + 1] = 100.0;
     }
 }
 
@@ -138,8 +120,8 @@ void meta_and_sub(double* senduf) {
         }
     }
 
-    MPI_Scatterv(senduf, send_counts, raw_offsets, raw_block, raw_subA + snx + 3,
-                 1, sub_block, 0, comm);
+    MPI_Scatterv(senduf, send_counts, raw_offsets, raw_block,
+                 raw_subA + snx + 3, 1, sub_block, 0, comm);
     init_edges();
 }
 
@@ -184,60 +166,40 @@ void simulate(double* raw) {
     }
     MPI_Datatype types[] = {row, row, col, col};
     uint32_t nc = 0;
-    if constexpr (debug) {
-        for (int worker = 0; worker < size; worker++) {
-            if (rank == worker) {
-                std::cout << "worker " << rank << " initial data:" << std::endl;
-                for (uint32_t r = 0; r < sny + 2; r++) {
-                    for (uint32_t c = 0; c < snx + 2; c++) {
-                        std::cout << data_subA[r][c] << " ";
-                    }
-                    std::cout << std::endl;
+#pragma omp parallel shared(raw_subA, raw_subB, data_subA, data_subB, sdisps, \
+                                types, rdisps, counts, comm, raw)
+    {
+        for (uint32_t t = 0; t < iters; t++) {
+            MPI_Request req;
+#pragma omp master
+            {
+                MPI_Ineighbor_alltoallw(raw_subA, counts, sdisps, types,
+                                        raw_subA, counts, rdisps, types, comm,
+                                        &req);
+            }
+
+#pragma omp for
+            for (uint32_t r = 2; r < sny; r++) {
+                for (uint32_t c = 2; c < snx; c++) {
+                    data_subB[r][c] =
+                        data_subA[r][c] +
+                        a * dt *
+                            ((data_subA[r + 1][c] - 2.0 * data_subA[r][c] +
+                              data_subA[r - 1][c]) *
+                                 inv_dx2 +
+                             (data_subA[r][c + 1] - 2.0 * data_subA[r][c] +
+                              data_subA[r][c - 1]) *
+                                 inv_dy2);
                 }
             }
-            MPI_Barrier(comm);
-        }
-    }
-    for (uint32_t t = 0; t < iters; t++) {
-        MPI_Request req;
-        MPI_Ineighbor_alltoallw(raw_subA, counts, sdisps, types, raw_subA, counts,
-                                rdisps, types, comm, &req);
-#pragma omp parallel for
-        for (uint32_t r = 2; r < sny; r++) {
-            for (uint32_t c = 2; c < snx; c++) {
-                data_subB[r][c] =
-                    data_subA[r][c] +
-                    a * dt *
-                        ((data_subA[r + 1][c] - 2.0 * data_subA[r][c] +
-                          data_subA[r - 1][c]) *
-                             inv_dx2 +
-                         (data_subA[r][c + 1] - 2.0 * data_subA[r][c] +
-                          data_subA[r][c - 1]) *
-                             inv_dy2);
+
+#pragma omp master
+            {
+                MPI_Status stat;
+                MPI_Wait(&req, &stat);
             }
-        }
-        MPI_Status stat;
-        MPI_Wait(&req, &stat);
-        if constexpr (debug) {
-            if (t == 0) {
-                MPI_Barrier(comm);
-                for (int worker = 0; worker < size; worker++) {
-                    if (rank == worker) {
-                        std::cout << "worker " << rank << " edges " << t
-                                  << " data:" << std::endl;
-                        for (uint32_t r = 0; r < sny + 2; r++) {
-                            for (uint32_t c = 0; c < snx + 2; c++) {
-                                std::cout << data_subA[r][c] << " ";
-                            }
-                            std::cout << std::endl;
-                        }
-                    }
-                    MPI_Barrier(comm);
-                }
-            }
-        }
-#pragma omp parallel
-        {
+#pragma omp barrier
+
 #pragma omp task
             {
                 for (uint32_t i = 1; i <= snx; i++) {
@@ -294,47 +256,23 @@ void simulate(double* raw) {
                                  inv_dy2);
                 }
             }
-        }
-        if (nc == t) {
-            MPI_Gatherv(raw_subB + snx + 3, 1, sub_block, raw, counts,
-                        raw_offsets, raw_block, 0, comm);
-            if (rank == 0) {
-                write(raw, t);
-                if constexpr (debug) {
-                    if (t == 0) {
-                        std::cout << "iter " << t << " total:\n";
-                        for (uint32_t r = 0; r < ny; r++) {
-                            for (uint32_t c = 0; c < nx; c++) {
-                                std::cout << raw[r * nx + c] << " ";
-                            }
-                            std::cout << std::endl;
-                        }
-                    }
-                }
-            }
-            nc += stepping;
-            MPI_Barrier(comm);
-        }
-        if constexpr (debug) {
-            if (t == 0) {
-                MPI_Barrier(comm);
-                for (int worker = 0; worker < size; worker++) {
-                    if (rank == worker) {
-                        std::cout << "worker " << rank << " iter " << t
-                                  << " data:" << std::endl;
-                        for (uint32_t r = 0; r < sny + 2; r++) {
-                            for (uint32_t c = 0; c < snx + 2; c++) {
-                                std::cout << data_subB[r][c] << " ";
-                            }
-                            std::cout << std::endl;
-                        }
+#pragma omp barrier
+            if (nc == t) {
+#pragma omp master
+                {
+                    MPI_Gatherv(raw_subB + snx + 3, 1, sub_block, raw, counts,
+                                raw_offsets, raw_block, 0, comm);
+                    if (rank == 0) {
+                        write(raw, t);
                     }
                     MPI_Barrier(comm);
                 }
+                nc += stepping;
             }
         }
         std::swap(raw_subA, raw_subB);
         std::swap(data_subA, data_subB);
+#pragma omp barrier
     }
     free(data_subA);
     free(data_subB);
