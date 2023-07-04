@@ -95,7 +95,9 @@ int main(int argc, char* argv[]) {
     double png_time = 0;
 
     auto start = high_resolution_clock::now();
-    #pragma omp parallel single default(shared)
+    #pragma omp parallel default(shared)
+    {
+    #pragma omp single
     {
     uint32_t nc = 0;
     for (uint32_t t = 0; t < iters; t++) {
@@ -111,6 +113,7 @@ int main(int argc, char* argv[]) {
         }
 
         std::swap(A_, B_);
+    }
     }
     }
 
