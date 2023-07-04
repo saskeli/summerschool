@@ -1,4 +1,6 @@
 
+#include <hip/hip_runtime.h>
+
 #include <chrono>
 #include <cstdint>
 #include <fstream>
@@ -20,7 +22,16 @@ static uint32_t ny = nx;
 static uint32_t iters = 20;
 static uint32_t stepping = 1;
 static double* rawA;
-static double* rawB;
+static double* A_;
+static double* B_;
+
+__global__ void heat(double* memA, double* memB, uint32_t nx) {
+    uint32_t i = blockIdx.x * blockDim.x + threadIdx.x + nx;
+    memB[i] =
+        memA[i] + a * dt *
+                      ((memA[i + nx] - 2.0 * memA[i] + memA[i - nx]) * inv_dx2 +
+                       (memA[i + 1] - 2.0 * memA[i] + memA[i - 1]) * inv_dy2);
+}
 
 void write(double* data, uint32_t t) {
     std::ostringstream filename_stream;
@@ -35,7 +46,6 @@ void read_file(char const* fname) {
     char risuaita;
     in >> risuaita >> nx >> ny;
     rawA = (double*)malloc(nx * ny * sizeof(double));
-    rawB = (double*)malloc(nx * ny * sizeof(double));
     for (uint32_t i = 0; i < nx * ny; i++) {
         in >> rawA[i];
     }
@@ -44,12 +54,11 @@ void read_file(char const* fname) {
 void defdef() {
     uint64_t size = nx * ny;
     rawA = (double*)malloc(size * sizeof(double));
-    rawB = (double*)malloc(size * sizeof(double));
     uint32_t cut = nx / 10;
     std::fill(rawA, rawA + nx * ny, double(95));
     for (uint32_t r = cut + 1; r < ny - cut - 1; r++) {
-        std::fill(rawA + r * nx + (nx / 2 - cut), rawA + r * nx + (nx / 2 + cut),
-                  double(0));
+        std::fill(rawA + r * nx + (nx / 2 - cut),
+                  rawA + r * nx + (nx / 2 + cut), double(0));
     }
 }
 
@@ -69,6 +78,12 @@ int main(int argc, char* argv[]) {
               << "Iterations: " << iters << "\n"
               << "Stepping: " << stepping << std::endl;
 
+    hipMalloc((void **) &A_, nx * ny * sizeof(double));
+    hipMalloc((void **) &B_, nx * ny * sizeof(double));
+    hipMemcpy(A_, rawA, sizeof(double) * nx * ny, hipMemcpyHostToDevice);
+
+    dim3 blocks(2 * (ny - 2));
+    dim3 threads(nx / 2);
 
     using std::chrono::duration_cast;
     using std::chrono::high_resolution_clock;
@@ -78,36 +93,17 @@ int main(int argc, char* argv[]) {
 
     uint32_t nc = 0;
     for (uint32_t t = 0; t < iters; t++) {
-        uint32_t le = (3 < ny ? 3 : ny) - 2;
-        #pragma omp target teams distribute parallel for map(to:rawA[0:nx*ny]) map(from:rawB[0:nx*ny])
-        for (uint32_t j = 0; j < le * nx; j++) {
-            uint32_t i = j + nx;
-            rawB[i] = rawA[i] + a * dt * ((rawA[i + nx] - 2.0 * rawA[i] + rawA[i - nx]) * inv_dx2 +
-                                          (rawA[i + 1] - 2.0 * rawA[i] + rawA[i - 1]) * inv_dy2);
-        }
-
-/*#pragma omp parallel for
-        for (uint32_t r = 1; r < ny - 1; r++) {
-            for (uint32_t c = 1; c < nx - 1; c++) {
-                rawB[r * nx + c] =
-                    rawA[r * nx + c] +
-                    a * dt *
-                        ((rawA[(r + 1) * nx + c] - 2.0 * rawA[r * nx + c] +
-                          rawA[(r - 1) * nx + c]) *
-                             inv_dx2 +
-                         (rawA[r * nx + c + 1] - 2.0 * rawA[r * nx + c] +
-                          rawA[r * nx + (c - 1)]) *
-                             inv_dy2);
-            }
-        }*/
-
+        heat<<<blocks, threads, 0, t>>>(A_, B_, nx);
+        hipStreamSynchronize(t);
         if (nc == t) {
+            hipMemcpy(rawA, B_, sizeof(double) * nx * ny, hipMemcpyDeviceToHost);
             write(rawB, t);
             nc += stepping;
         }
-        std::swap(rawA, rawB);
+
+        std::swap(A_, B_);
     }
-    
+
     auto end = high_resolution_clock::now();
     double time = duration_cast<nanoseconds>(end - start).count();
     std::cout << "Simulation took " << time / 1000000 << "ms" << std::endl;
