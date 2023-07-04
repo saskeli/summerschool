@@ -103,8 +103,8 @@ int main(int argc, char* argv[]) {
     for (uint32_t t = 0; t < iters; t++) {
         heat<<<blocks, threads, 0, 0>>>(A_, B_, nx);
         if (nc == t) {
+            #pragma omp taskwait
             hipMemcpy(rawA, B_, sizeof(double) * nx * ny, hipMemcpyDeviceToHost);
-            #pragma omp barrier
             #pragma omp task
             {
             png_time += write(rawA, t);
