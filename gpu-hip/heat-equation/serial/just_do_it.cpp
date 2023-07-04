@@ -30,22 +30,22 @@ using std::chrono::high_resolution_clock;
 using std::chrono::nanoseconds;
 
 __global__ void heat(double* memA, double* memB, uint32_t nx) {
-    auto start = high_resolution_clock::now();
     uint32_t i = blockIdx.x * blockDim.x + threadIdx.x + nx;
     memB[i] =
         memA[i] + a * dt *
                       ((memA[i + nx] - 2.0 * memA[i] + memA[i - nx]) * inv_dx2 +
                        (memA[i + 1] - 2.0 * memA[i] + memA[i - 1]) * inv_dy2);
-    auto end = high_resolution_clock::now();
-    return duration_cast<nanoseconds>(end - start).count();
 }
 
 double write(double* data, uint32_t t) {
+    auto start = high_resolution_clock::now();
     std::ostringstream filename_stream;
     filename_stream << "heat_" << std::setw(4) << std::setfill('0') << t
                     << ".png";
     std::string filename = filename_stream.str();
     save_png(data, ny, nx, filename.c_str(), 'c');
+    auto end = high_resolution_clock::now();
+    return duration_cast<nanoseconds>(end - start).count();
 }
 
 void read_file(char const* fname) {
