@@ -57,8 +57,8 @@ $(OBJS): C_COMPILER := $(CXX)
 $(EXE): $(OBJS) $(OBJS_PNG)
 	$(CXX) $(CCFLAGS) $(OBJS) $(OBJS_PNG) -o $@ $(LDFLAGS) $(LIBS)
 
-just_do_it: $(OBJS_PNG) just_do_it.cpp
-	$(CXX) $(CCFLAGS) just_do_it.cpp $(OBJS_PNG) -o $@ $(LDFLAGS) $(LIBS)
+just_do_it: just_do_it.cpp
+	$(CXX) $(CCFLAGS) just_do_it.cpp -o $@ $(LDFLAGS) $(LIBS)
 
 %.o: %.cpp
 	$(CXX) $(CCFLAGS) -c $< -o $@
