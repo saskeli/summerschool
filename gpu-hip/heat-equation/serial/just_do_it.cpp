@@ -93,8 +93,7 @@ int main(int argc, char* argv[]) {
 
     uint32_t nc = 0;
     for (uint32_t t = 0; t < iters; t++) {
-        heat<<<blocks, threads, 0, t>>>(A_, B_, nx);
-        hipStreamSynchronize(t);
+        heat<<<blocks, threads, 0, 0>>>(A_, B_, nx);
         if (nc == t) {
             hipMemcpy(rawA, B_, sizeof(double) * nx * ny, hipMemcpyDeviceToHost);
             write(rawA, t);
