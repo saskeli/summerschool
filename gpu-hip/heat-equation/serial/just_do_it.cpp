@@ -78,8 +78,10 @@ int main(int argc, char* argv[]) {
 
     uint32_t nc = 0;
     for (uint32_t t = 0; t < iters; t++) {
+        uint32_t le = (3 < ny ? 3 : ny) - 2;
         #pragma omp target teams distribute parallel for map(to:rawA[0:nx*ny]) map(from:rawB[0:nx*ny])
-        for (uint32_t i = nx; i < (ny - 1) * nx; i++) {
+        for (uint32_t j = 0; j < le * nx; j++) {
+            uint32_t i = j + nx;
             rawB[i] = rawA[i] + a * dt * ((rawA[i + nx] - 2.0 * rawA[i] + rawA[i - nx]) * inv_dx2 +
                                           (rawA[i + 1] - 2.0 * rawA[i] + rawA[i - 1]) * inv_dy2);
         }
